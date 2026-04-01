@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a1a">
+<title>MEISHI Flow</title>
+<link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0a1a;
+    --bg-card: rgba(255,255,255,0.05);
+    --bg-card-hover: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.08);
+    --text-primary: #f0f0f5;
+    --text-secondary: rgba(240,240,245,0.55);
+    --accent: #6ee7b7;
+    --accent-dim: rgba(110,231,183,0.15);
+    --danger: #f87171;
+    --radius: 20px;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    font-family: 'DM Sans', 'Noto Sans JP', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ── ambient bg ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 10%, rgba(110,231,183,0.08), transparent),
+      radial-gradient(ellipse 50% 40% at 80% 90%, rgba(99,102,241,0.06), transparent);
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── header ── */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    background: rgba(10,10,26,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-size: 18px; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header .status {
+    font-size: 11px; color: var(--text-secondary);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .header .status::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent);
+  }
+
+  /* ── main ── */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 440px; margin: 0 auto;
+    padding: 24px 16px 120px;
+  }
+
+  /* ── config section ── */
+  .config-section {
+    margin-bottom: 24px;
+  }
+  .config-toggle {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 0;
+    font-size: 13px; color: var(--text-secondary);
+    cursor: pointer; border: none; background: none;
+    transition: color .2s;
+  }
+  .config-toggle:hover { color: var(--text-primary); }
+  .config-toggle svg { transition: transform .3s; }
+  .config-toggle.open svg { transform: rotate(90deg); }
+  .config-fields {
+    display: none; flex-direction: column; gap: 12px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .config-fields.show { display: flex; }
+  .config-fields label {
+    font-size: 12px; color: var(--text-secondary);
+    margin-bottom: 4px; display: block;
+  }
+  .config-fields input {
+    width: 100%; padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color .2s;
+  }
+  .config-fields input:focus { border-color: var(--accent); }
+  .config-fields .hint {
+    font-size: 11px; color: var(--text-secondary);
+    line-height: 1.5;
+  }
+
+  /* ── capture area ── */
+  .capture-area {
+    border: 2px dashed rgba(255,255,255,0.1);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .capture-area:hover, .capture-area:active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .capture-area.has-image {
+    padding: 0; border-style: solid; border-color: var(--accent);
+  }
+  .capture-area .icon {
+    width: 56px; height: 56px; margin: 0 auto 16px;
+    border-radius: 50%;
+    background: var(--accent-dim);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .capture-area .icon svg { width: 28px; height: 28px; color: var(--accent); }
+  .capture-area .label { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+  .capture-area .sublabel { font-size: 12px; color: var(--text-secondary); }
+  .capture-area img {
+    width: 100%; display: block; border-radius: calc(var(--radius) - 2px);
+  }
+
+  #fileInput { display: none; }
+
+  /* ── send btn ── */
+  .send-btn {
+    width: 100%; margin-top: 20px; padding: 16px;
+    font-size: 16px; font-weight: 700; font-family: inherit;
+    color: #0a0a1a;
+    background: linear-gradient(135deg, var(--accent), #34d399);
+    border: none; border-radius: 14px;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+    box-shadow: 0 4px 24px rgba(110,231,183,0.25);
+  }
+  .send-btn:disabled {
+    opacity: .35; cursor: not-allowed;
+    box-shadow: none;
+  }
+  .send-btn:not(:disabled):active { transform: scale(0.98); }
+
+  /* ── result ── */
+  .result-card {
+    margin-top: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    animation: fadeUp .4s ease-out;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .result-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .result-header .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+  .dot-success { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .dot-error { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .result-header span { font-size: 14px; font-weight: 600; }
+  .result-body { padding: 20px; }
+  .result-body .row {
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .result-body .row:last-child { border-bottom: none; }
+  .result-body .row .key { color: var(--text-secondary); flex-shrink: 0; }
+  .result-body .row .val { text-align: right; word-break: break-all; }
+
+  /* ── loading ── */
+  .loading-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(10,10,26,0.88);
+    backdrop-filter: blur(8px);
+    flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+  }
+  .loading-overlay.show { display: flex; }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 3px solid rgba(255,255,255,0.08);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p {
+    font-size: 14px; color: var(--text-secondary);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .5; } }
+
+  /* ── history ── */
+  .history-section { margin-top: 32px; }
+  .history-section h2 {
+    font-size: 14px; color: var(--text-secondary);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .history-item {
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .history-item .company { font-weight: 600; }
+  .history-item .time { font-size: 11px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>MEISHI Flow</h1>
+  <div class="status">Ready</div>
+</div>
+
+<div class="container">
+
+  <!-- 設定 -->
+  <div class="config-section">
+    <button class="config-toggle" onclick="toggleConfig()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      設定
+    </button>
+    <div class="config-fields" id="configFields">
+      <div>
+        <label>GAS Web App URL</label>
+        <input type="url" id="gasUrl" placeholder="https://script.google.com/macros/s/xxxx/exec">
+        <div class="hint">※ GASの「ウェブアプリとして公開」で取得したURLを入力</div>
+      </div>
+      <div>
+        <label>あなたの名前</label>
+        <input type="text" id="myName" placeholder="青柳">
+      </div>
+    </div>
+  </div>
+
+  <!-- 撮影エリア -->
+  <div class="capture-area" id="captureArea" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    </div>
+    <div class="label">名刺を撮影</div>
+    <div class="sublabel">タップしてカメラを起動</div>
+  </div>
+  <input type="file" id="fileInput" accept="image/*" capture="environment">
+
+  <!-- 送信ボタン -->
+  <button class="send-btn" id="sendBtn" disabled onclick="sendCard()">
+    送信して解析する
+  </button>
+
+  <!-- 結果表示 -->
+  <div id="resultArea"></div>
+
+  <!-- 履歴 -->
+  <div class="history-section" id="historySection" style="display:none">
+    <h2>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      送信履歴
+    </h2>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- ローディング -->
+<div class="loading-overlay" id="loading">
+  <div class="spinner"></div>
+  <p>名刺を解析しています…</p>
+</div>
+
+<script>
+  // ── 状態管理 ──
+  let imageBase64 = null;
+
+  // ── 設定の保存・読み込み ──
+  function loadConfig() {
+    const url = localStorage.getItem('meishi_gas_url') || '';
+    const name = localStorage.getItem('meishi_my_name') || '';
+    document.getElementById('gasUrl').value = url;
+    document.getElementById('myName').value = name;
+  }
+  function saveConfig() {
+    localStorage.setItem('meishi_gas_url', document.getElementById('gasUrl').value.trim());
+    localStorage.setItem('meishi_my_name', document.getElementById('myName').value.trim());
+  }
+  document.getElementById('gasUrl').addEventListener('change', saveConfig);
+  document.getElementById('myName').addEventListener('change', saveConfig);
+  loadConfig();
+
+  // ── 設定の開閉 ──
+  function toggleConfig() {
+    const btn = document.querySelector('.config-toggle');
+    const fields = document.getElementById('configFields');
+    btn.classList.toggle('open');
+    fields.classList.toggle('show');
+  }
+
+  // ── 履歴の読み込み ──
+  function loadHistory() {
+    const history = JSON.parse(localStorage.getItem('meishi_history') || '[]');
+    if (history.length === 0) return;
+    document.getElementById('historySection').style.display = 'block';
+    const list = document.getElementById('historyList');
+    list.innerHTML = history.slice(0, 10).map(h =>
+      `<div class="history-item">
+        <span class="company">${h.company || '(不明)'} — ${h.name || ''}</span>
+        <span class="time">${h.time}</span>
+      </div>`
+    ).join('');
+  }
+  function addHistory(company, name) {
+    const history = JSON.parse(localStorage.getItem('meishi_history') || '[]');
+    const now = new Date();
+    const time = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    history.unshift({ company, name, time });
+    localStorage.setItem('meishi_history', JSON.stringify(history.slice(0, 50)));
+    loadHistory();
+  }
+  loadHistory();
+
+  // ── カメラ撮影 → Base64変換 ──
+  document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const fullDataUrl = ev.target.result;        // "data:image/jpeg;base64,xxxx..."
+      imageBase64 = fullDataUrl.split(',')[1];       // Base64部分だけ抽出
+
+      // プレビュー表示
+      const area = document.getElementById('captureArea');
+      area.innerHTML = `<img src="${fullDataUrl}" alt="名刺プレビュー">`;
+      area.classList.add('has-image');
+
+      document.getElementById('sendBtn').disabled = false;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // ── GASへ送信 ──
+  async function sendCard() {
+    const gasUrl = document.getElementById('gasUrl').value.trim();
+    const myName = document.getElementById('myName').value.trim() || '菅間';
+
+    if (!gasUrl) {
+      alert('設定を開いてGAS Web App URLを入力してください。');
+      toggleConfig();
+      return;
+    }
+    if (!imageBase64) return;
+
+    // ローディング表示
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('sendBtn').disabled = true;
+
+    try {
+      const res = await fetch(gasUrl, {
+        method: 'POST',
+        body: JSON.stringify({ image: imageBase64, myName: myName }),
+        mode: 'no-cors'
+      });
+
+      showResult(true, '送信しました（スプレッドシートで結果を確認してください）');
+    } catch (err) {
+      showResult(false, 'ネットワークエラー: ' + err.message);
+    } finally {
+      document.getElementById('loading').classList.remove('show');
+      document.getElementById('sendBtn').disabled = false;
+    }
+  }
+
+  // ── 結果表示 ──
+  function showResult(success, message) {
+    const area = document.getElementById('resultArea');
+
+    if (success) {
+      // GASから返る "Success!" の場合は成功扱い
+      // 注: 現在のGASはJSONではなく "Success!" を返す仕様
+      area.innerHTML = `
+        <div class="result-card">
+          <div class="result-header">
+            <div class="dot dot-success"></div>
+            <span>送信完了</span>
+          </div>
+          <div class="result-body">
+            <div class="row">
+              <span class="key">ステータス</span>
+              <span class="val">${escapeHtml(message)}</span>
+            </div>
+            <div class="row">
+              <span class="key">メモ</span>
+              <span class="val">スプレッドシートに記録＆メール送信済み</span>
+            </div>
+          </div>
+        </div>`;
+      addHistory('(送信成功)', document.getElementById('myName').value.trim());
+    } else {
+      area.innerHTML = `
+        <div class="result-card">
+          <div class="result-header">
+            <div class="dot dot-error"></div>
+            <span>エラー</span>
+          </div>
+          <div class="result-body">
+            <div class="row">
+              <span class="key">詳細</span>
+              <span class="val">${escapeHtml(message)}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // 撮影エリアをリセット
+    resetCapture();
+  }
+
+  function resetCapture() {
+    imageBase64 = null;
+    const area = document.getElementById('captureArea');
+    area.classList.remove('has-image');
+    area.innerHTML = `
+      <div class="icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <div class="label">名刺を撮影</div>
+      <div class="sublabel">タップしてカメラを起動</div>`;
+    document.getElementById('fileInput').value = '';
+    document.getElementById('sendBtn').disabled = true;
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>
