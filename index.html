@@ -403,7 +403,9 @@
 
       showResult(true, '送信しました（スプレッドシートで結果を確認してください）');
     } catch (err) {
-      showResult(false, 'ネットワークエラー: ' + err.message);
+      showResult(false, 'ネットワークエラー',
+        'ブラウザからGASへの通信に失敗しました。',
+        'GAS URLが正しいか、インターネット接続を確認してください。\n（詳細: ' + err.message + '）');
     } finally {
       document.getElementById('loading').classList.remove('show');
       document.getElementById('sendBtn').disabled = false;
@@ -411,12 +413,12 @@
   }
 
   // ── 結果表示 ──
-  function showResult(success, message) {
+  // success=true: showResult(true, message)
+  // success=false: showResult(false, title, where, cause)
+  function showResult(success, message, where, cause) {
     const area = document.getElementById('resultArea');
 
     if (success) {
-      // GASから返る "Success!" の場合は成功扱い
-      // 注: 現在のGASはJSONではなく "Success!" を返す仕様
       area.innerHTML = `
         <div class="result-card">
           <div class="result-header">
@@ -430,7 +432,7 @@
             </div>
             <div class="row">
               <span class="key">メモ</span>
-              <span class="val">スプレッドシートに記録＆メール送信済み</span>
+              <span class="val">スプレッドシートに記録＆メール下書き作成済み</span>
             </div>
           </div>
         </div>`;
@@ -440,18 +442,25 @@
         <div class="result-card">
           <div class="result-header">
             <div class="dot dot-error"></div>
-            <span>エラー</span>
+            <span>${escapeHtml(message)}</span>
           </div>
           <div class="result-body">
             <div class="row">
-              <span class="key">詳細</span>
-              <span class="val">${escapeHtml(message)}</span>
+              <span class="key">どこで</span>
+              <span class="val">${escapeHtml(where || '不明')}</span>
+            </div>
+            <div class="row">
+              <span class="key">原因</span>
+              <span class="val">${escapeHtml(cause || '不明なエラー')}</span>
+            </div>
+            <div class="row">
+              <span class="key">ヒント</span>
+              <span class="val">GAS側のエラーはApps Scriptの「実行数」ログで詳細を確認できます</span>
             </div>
           </div>
         </div>`;
     }
 
-    // 撮影エリアをリセット
     resetCapture();
   }
 

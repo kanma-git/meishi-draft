@@ -1,16 +1,16 @@
 function doPost(e) {
+  var step = "①データ受信";
   try {
-    // 1. iPhoneから送られてきたデータを受け取る
     const params = JSON.parse(e.postData.contents);
     const imageBase64 = params.image;
-    const myName = params.myName || "菅間"; // ショートカット側で名前が取得できなかった場合の予備
-    
-    // 2. Gemini APIを呼び出して名刺を解析
+    const myName = params.myName || "菅間";
+
+    step = "②Gemini API呼び出し（名刺解析）";
     const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
-    
-    // 最新の安定版モデル（Gemini 2.5 Flash）を指定
+    if (!apiKey) throw new Error("スクリプトプロパティに GEMINI_API_KEY が設定されていません");
+
     const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
-    
+
     const prompt = `
     添付された名刺画像から以下の情報を抽出し、JSON形式でのみ回答してください。
     JSONのキーは必ず以下にしてください:
@@ -27,27 +27,32 @@ function doPost(e) {
       }],
       "generationConfig": {"responseMimeType": "application/json"}
     };
-    
+
     const options = {
       "method": "post",
       "contentType": "application/json",
       "payload": JSON.stringify(payload)
     };
-    
+
     const response = UrlFetchApp.fetch(url, options);
-    
-    // APIからのレスポンスを解析してJSON文字列を取り出す
-    const jsonStr = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
+
+    step = "③Geminiレスポンス解析";
+    const responseBody = JSON.parse(response.getContentText());
+    if (!responseBody.candidates || !responseBody.candidates[0]) {
+      throw new Error("Geminiから有効な回答が返りませんでした");
+    }
+    const jsonStr = responseBody.candidates[0].content.parts[0].text;
     const data = JSON.parse(jsonStr);
-    
-    // 3. スプレッドシートに書き込む
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+
+    step = "④スプレッドシート書き込み";
+    const SPREADSHEET_ID = "ここにスプレッドシートのIDを貼り付ける";
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
     sheet.appendRow([
       new Date(), myName, data.companyName, data.industry,
       data.contactName, data.title, data.email, data.phone, data.address
     ]);
-    
-    // 4. Gmailを自動送信する
+
+    step = "⑤メール下書き作成";
     const subject = `名刺交換させていただいたお礼`;
     const body = `${data.companyName}
 ${data.contactName} 様
@@ -65,16 +70,16 @@ https://calendar.app.google/273KmJXyh4TmJ5paA
 それでは、引き続きよろしくお願いいたします！
 
 ${myName}`;
-    
-    if(data.email) {
-      // createDraft（下書き作成）から sendEmail（直接送信）に変更しました
-      GmailApp.sendEmail(data.email, subject, body);
+
+    if (data.email) {
+      GmailApp.createDraft(data.email, subject, body);
     }
-    
+
     return ContentService.createTextOutput("Success!");
-    
+
   } catch(error) {
-    Logger.log(error.toString()); // GASのログに記録
-    return ContentService.createTextOutput("Error: " + error.toString());
+    var msg = "【" + step + "】で失敗しました。原因: " + error.message;
+    Logger.log(msg);
+    return ContentService.createTextOutput("Error: " + msg);
   }
 }
