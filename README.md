@@ -147,6 +147,7 @@ cd ~/Downloads/dev/dev_名刺Flow_WEB用
 
 以下のコードを全てコピペ
 
+```javascript
 function doPost(e) {
   try {
     const params = JSON.parse(e.postData.contents);
@@ -217,3 +218,4 @@ https://calendar.app.google/K4yApH9WKKUTme3q9
     return ContentService.createTextOutput("Error: " + error.toString());
   }
 }
+```
