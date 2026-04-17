@@ -6,8 +6,7 @@ function doPost(e) {
     const myName = params.myName || "菅間"; // ショートカット側で名前が取得できなかった場合の予備
     
     // 2. Gemini APIを呼び出して名刺を解析
-    // 【重要】新しく発行したAPIキーをここに貼り付けてください
-    const apiKey = "AIzaSyBXQdqVcqA95HYS87QYg0n9z4QEkjNNeB0"; 
+    const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
     
     // 最新の安定版モデル（Gemini 2.5 Flash）を指定
     const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
