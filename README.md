@@ -141,22 +141,26 @@ cd ~/Downloads/dev/dev_名刺Flow_WEB用
 
 
 ## 📌 コピペ用
-→ メールの本文を修正
-→ スクリプト プロパティでAPIキーを設定
-→ スプレッドシートIDを転記
+→ `SPREADSHEET_ID` にスプレッドシートのIDを貼り付ける
+→ スクリプトプロパティで `GEMINI_API_KEY` を設定する
+→ メールの件名・本文・日程調整リンクを必要に応じて修正する
 
 以下のコードを全てコピペ
 
 ```javascript
 function doPost(e) {
+  var step = "①データ受信";
   try {
     const params = JSON.parse(e.postData.contents);
     const imageBase64 = params.image;
-    const myName = params.myName || "傳田";
-    
+    const myName = params.myName || "菅間";
+
+    step = "②Gemini API呼び出し（名刺解析）";
     const apiKey = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
+    if (!apiKey) throw new Error("スクリプトプロパティに GEMINI_API_KEY が設定されていません");
+
     const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
-    
+
     const prompt = `
     添付された名刺画像から以下の情報を抽出し、JSON形式でのみ回答してください。
     JSONのキーは必ず以下にしてください:
@@ -173,49 +177,60 @@ function doPost(e) {
       }],
       "generationConfig": {"responseMimeType": "application/json"}
     };
-    
+
     const options = {
       "method": "post",
       "contentType": "application/json",
       "payload": JSON.stringify(payload)
     };
-    
+
     const response = UrlFetchApp.fetch(url, options);
-    const jsonStr = JSON.parse(response.getContentText()).candidates[0].content.parts[0].text;
+
+    step = "③Geminiレスポンス解析";
+    const responseBody = JSON.parse(response.getContentText());
+    if (!responseBody.candidates || !responseBody.candidates[0]) {
+      throw new Error("Geminiから有効な回答が返りませんでした");
+    }
+    const jsonStr = responseBody.candidates[0].content.parts[0].text;
     const data = JSON.parse(jsonStr);
-    
-    const sheet = SpreadsheetApp.openById("スプレッドシートID").getActiveSheet();
+
+    step = "④スプレッドシート書き込み";
+    const SPREADSHEET_ID = "ここにスプレッドシートのIDを貼り付ける"; // ← 変更する
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
     sheet.appendRow([
       new Date(), myName, data.companyName, data.industry,
       data.contactName, data.title, data.email, data.phone, data.address
     ]);
-    
-    // ↓↓↓ 件名・本文のみ変更 ↓↓↓
-    const subject = `■名刺交換の御礼■ AI企業 ㈱Aitane:傳田`;
+
+    step = "⑤メール下書き作成";
+    const subject = `名刺交換させていただいたお礼`; // ← 件名を変更する場合はここ
     const body = `${data.companyName}
-${data.contactName}様
+${data.contactName} 様
 
-株式会社Aitane（アイタネ）の傳田(デンダ)でございます。
-お名刺交換をありがとうございます。
+株式会社Aitane（アイタネ）の${myName}です。
+名刺交換をさせていただきありがとうございます！
 
-本日のお話を踏まえ、一度情報交換の機会を頂けましたら幸いです。
-お手数ですが、下記日程リンクよりご都合の良い日時をご選択ください。
+弊社では、議事録作成からCRM入力までをAIで完全自動化し、営業の売上を最大化する『Aitane』というシステムを提供しております。
+https://aitane.co.jp/service#crm
 
+もしよろしければ、下記より次回の情報交換の場を押さえさせていただけますと幸いです。
 ▼日程調整リンク（カレンダーから空き枠を選ぶだけで完了します）
-https://calendar.app.google/K4yApH9WKKUTme3q9
+https://calendar.app.google/273KmJXyh4TmJ5paA
 
-よろしくお願いいたします。`;
-    // ↑↑↑ 変更ここまで ↑↑↑
-    
-    if(data.email) {
-      GmailApp.sendEmail(data.email, subject, body);
+それでは、引き続きよろしくお願いいたします！
+
+${myName}`; // ← 本文を変更する場合はここ
+
+    if (data.email) {
+      GmailApp.createDraft(data.email, subject, body); // 下書き作成（送信はしない）
     }
-    
+
     return ContentService.createTextOutput("Success!");
-    
+
   } catch(error) {
-    Logger.log(error.toString());
-    return ContentService.createTextOutput("Error: " + error.toString());
+    var msg = "【" + step + "】で失敗しました。原因: " + error.message;
+    Logger.log(msg);
+    return ContentService.createTextOutput("Error: " + msg);
   }
 }
 ```
