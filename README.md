@@ -154,6 +154,8 @@ cd ~/Downloads/dev/dev_名刺Flow_WEB用
  *  5. 429/5xx 向けリトライ機構
  *  6. 呼び出し元に JSON で成否を返す
  *  7. step による失敗箇所の特定ログ
+ *  8. data:image/xxx;base64, プレフィックスを除去(iPhone/Android PWA対策)
+ *  9. AVIFをサポート対象に追加
  */
 function doPost(e) {
   var step = "①データ受信";
@@ -164,9 +166,11 @@ function doPost(e) {
       throw new Error("リクエストボディが空です(エディタから直接実行していませんか?)");
     }
     const params = JSON.parse(e.postData.contents);
-    const imageBase64 = params.image;
+    const rawImage = params.image;
+    if (!rawImage) throw new Error("image(base64)が未指定です");
+    // data:image/xxx;base64, プレフィックスがあれば除去（iPhone/Android PWA対策）
+    const imageBase64 = rawImage.includes(",") ? rawImage.split(",")[1] : rawImage;
     const myName = params.myName || "傳田";
-    if (!imageBase64) throw new Error("image(base64)が未指定です");
 
     // ---- MIME 自動判定(全端末対応) ---------------------------------
     step = "②MIMEタイプ判定";
@@ -175,7 +179,8 @@ function doPost(e) {
       : detectImageMimeType(imageBase64);
     Logger.log("Detected MIME: " + mimeType);
 
-    const supported = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"];
+    // "image/heif" は detectImageMimeType では返さないが、クライアントが明示送信した場合に受け入れるため残す
+    const supported = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/avif"];
     if (supported.indexOf(mimeType) === -1) {
       throw new Error("未対応の画像形式: " + mimeType + " (JPEG/PNG/WebP推奨)");
     }
@@ -186,7 +191,7 @@ function doPost(e) {
 
     // ---- スプレッドシート書き込み -----------------------------------
     step = "④スプレッドシート書き込み";
-    const SPREADSHEET_ID = "ここにスプレッドシートのIDを貼り付ける"; // ← 変更する
+    const SPREADSHEET_ID = "1jIQi3-EQmIRVzwwqhrHab8x1U3cGm2dxSy2D05wnidY"; // ← 変更する
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
     sheet.appendRow([
       startedAt, myName,
@@ -307,7 +312,7 @@ function extractBusinessCard(imageBase64, mimeType) {
     lastError = "HTTP " + code + ": " + response.getContentText().slice(0, 500);
     Logger.log("Retry " + (i + 1) + " - " + lastError);
     if (code !== 429 && code < 500) break; // 4xxはリトライ不要
-    Utilities.sleep(1000 * (i + 1));
+    if (i < 2) Utilities.sleep(1000 * (i + 1)); // 最終リトライ後はsleep不要
   }
   if (response.getResponseCode() !== 200) {
     throw new Error("Gemini API失敗: " + lastError);
