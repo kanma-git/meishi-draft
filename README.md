@@ -191,7 +191,7 @@ function doPost(e) {
 
     // ---- スプレッドシート書き込み -----------------------------------
     step = "④スプレッドシート書き込み";
-    const SPREADSHEET_ID = "1jIQi3-EQmIRVzwwqhrHab8x1U3cGm2dxSy2D05wnidY"; // ← 変更する
+    const SPREADSHEET_ID = "スプレッドシートIDを入力; // ← 変更する
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getActiveSheet();
     sheet.appendRow([
       startedAt, myName,
