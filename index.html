@@ -314,14 +314,14 @@
 
   // ── 設定の保存・読み込み ──
   function loadConfig() {
-    const url = localStorage.getItem('meishi_gas_url') || '';
-    const name = localStorage.getItem('meishi_my_name') || '';
+    const url = localStorage.getItem('draft_gas_url') || '';
+    const name = localStorage.getItem('draft_my_name') || '';
     document.getElementById('gasUrl').value = url;
     document.getElementById('myName').value = name;
   }
   function saveConfig() {
-    localStorage.setItem('meishi_gas_url', document.getElementById('gasUrl').value.trim());
-    localStorage.setItem('meishi_my_name', document.getElementById('myName').value.trim());
+    localStorage.setItem('draft_gas_url', document.getElementById('gasUrl').value.trim());
+    localStorage.setItem('draft_my_name', document.getElementById('myName').value.trim());
   }
   document.getElementById('gasUrl').addEventListener('change', saveConfig);
   document.getElementById('myName').addEventListener('change', saveConfig);
@@ -337,7 +337,7 @@
 
   // ── 履歴の読み込み ──
   function loadHistory() {
-    const history = JSON.parse(localStorage.getItem('meishi_history') || '[]');
+    const history = JSON.parse(localStorage.getItem('draft_history') || '[]');
     if (history.length === 0) return;
     document.getElementById('historySection').style.display = 'block';
     const list = document.getElementById('historyList');
@@ -349,11 +349,11 @@
     ).join('');
   }
   function addHistory(company, name) {
-    const history = JSON.parse(localStorage.getItem('meishi_history') || '[]');
+    const history = JSON.parse(localStorage.getItem('draft_history') || '[]');
     const now = new Date();
     const time = `${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
     history.unshift({ company, name, time });
-    localStorage.setItem('meishi_history', JSON.stringify(history.slice(0, 50)));
+    localStorage.setItem('draft_history', JSON.stringify(history.slice(0, 50)));
     loadHistory();
   }
   loadHistory();
@@ -381,7 +381,7 @@
   // ── GASへ送信 ──
   async function sendCard() {
     const gasUrl = document.getElementById('gasUrl').value.trim();
-    const myName = document.getElementById('myName').value.trim() || '菅間';
+    const myName = document.getElementById('myName').value.trim() || '';
 
     if (!gasUrl) {
       alert('設定を開いてGAS Web App URLを入力してください。');
